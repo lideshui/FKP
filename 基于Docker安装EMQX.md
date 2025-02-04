@@ -10,13 +10,13 @@
 
 1. 运行以下命令获取 Docker 镜像：
 
-   ```
+   ```shell
    docker pull emqx/emqx-enterprise:5.8.4
    ```
 
 2. 运行以下命令启动 Docker 容器。
 
-   ```
+   ```shell
    docker run -d --name emqx-enterprise -p 1883:1883 -p 8083:8083 -p 8084:8084 -p 8883:8883 -p 18083:18083 emqx/emqx-enterprise:5.8.4
    ```
 
@@ -24,9 +24,8 @@
 
 1. 如果需要持久 Docker 容器 ，请将以下目录挂载到容器外部，这样即使容器被删除数据也不会丢失：
 
-   bash
 
-   ```
+   ```shell
    /opt/emqx/data
    /opt/emqx/log
    ```
@@ -35,9 +34,8 @@
 
    启动容器并挂载目录：
 
-   bash
 
-   ```
+   ```shell
    docker run -d --name emqx-enterprise \
      -p 1883:1883 -p 8083:8083 \
      -p 8084:8084 -p 8883:8883 \
@@ -61,7 +59,7 @@ Docker Compose 是一个用于编排和运行多容器的工具，下面将指�
 
 1. 在任意目录创建 `docker-compose.yml` 文件，内容如下：
 
-   ```
+   ```shell
    version: '3'
    
    services:
@@ -116,13 +114,13 @@ Docker Compose 是一个用于编排和运行多容器的工具，下面将指�
 
 2. 通过命令行切换 `docker-compose.yml` 文件所在目录，然后输入以下命令启动 EMQX 集群：
 
-   ```
+   ```shell
    docker-compose up -d
    ```
 
 3. 查看集群状态：
 
-   ```
+   ```shell
    docker exec -it emqx1 sh -c "emqx ctl cluster status"
    Cluster status: #{running_nodes => ['emqx@node1.emqx.com','emqx@node2.emqx.com'],
                      stopped_nodes => []}
