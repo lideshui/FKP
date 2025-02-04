@@ -125,5 +125,3 @@ Docker Compose 是一个用于编排和运行多容器的工具，下面将指�
    Cluster status: #{running_nodes => ['emqx@node1.emqx.com','emqx@node2.emqx.com'],
                      stopped_nodes => []}
    ```
-
-## 下一步
