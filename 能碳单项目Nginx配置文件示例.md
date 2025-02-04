@@ -2,7 +2,7 @@
 # 能碳项目
 
 server{
-  listen  28080;
+  listen  80;
   server_name  125.124.133.230;
   
   location / {
