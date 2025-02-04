@@ -1,71 +1,131 @@
-在 PostgreSQL 中，通过命令导出全库备份的 `.sql` 文件后，可以使用 `psql` 命令将其导入到数据库中。以下是详细的步骤：
+# 通过 Docker 运行 EMQX
 
-### 一、导出全库备份的 `.sql` 文件
+本页将指导您使用官方 Docker 镜像快速安装和运行 EMQX，并使用 Docker Compose 实现集群搭建。
 
-首先，使用 `pg_dump` 工具导出全库备份的 `.sql` 文件。例如：
+文档地址：https://docs.emqx.com/zh/emqx/latest/deploy/install-docker.html
 
-```sh
-sh复制代码
+## 通过 Docker 运行单个 EMQX 节点
 
-pg_dump -U 用户名 -h 主机名 -p 端口号 -W -F p -b -v -f 备份文件名.sql 数据库名
-```
+本节主要介绍如何通过 Docker 镜像安装最新版本的 EMQX。有关 EMQX 官方镜像的更多信息，请查看 [Docker Hub - emqx/emqx-enterprise](https://hub.docker.com/r/emqx/emqx-enterprise)。
 
-- `-U`：指定连接数据库的用户名。
-- `-h`：指定服务器的主机名，默认为本地机器。
-- `-p`：指定服务器的端口号，默认为5432。
-- `-W`：提示输入密码。
-- `-F p`：指定输出文件格式为纯文本（SQL脚本）。
-- `-b`：包括大对象（如BLOB）。
-- `-v`：启用详细模式，打印更多输出信息。
-- `-f`：指定输出文件的路径和名称。
+1. 运行以下命令获取 Docker 镜像：
 
-### 二、导入 `.sql` 文件到数据库中
-
-1. **确保目标数据库存在**：
-
-   在导入之前，确保目标数据库已经存在。如果数据库不存在，你需要先创建它。例如：
-
-   ```sh
-   sh复制代码
-   
-   psql -U 用户名 -c "CREATE DATABASE 目标数据库名;"
+   ```
+   docker pull emqx/emqx-enterprise:5.8.4
    ```
 
-2. **使用 `psql` 命令导入 `.sql` 文件**：
+2. 运行以下命令启动 Docker 容器。
 
-   使用 `psql` 命令连接到目标数据库，并执行 `.sql` 文件中的SQL语句。例如：
-
-   ```sh
-   sh复制代码
-   
-   psql -U 用户名 -d 目标数据库名 -f 备份文件名.sql
+   ```
+   docker run -d --name emqx-enterprise -p 1883:1883 -p 8083:8083 -p 8084:8084 -p 8883:8883 -p 18083:18083 emqx/emqx-enterprise:5.8.4
    ```
 
-   - `-U`：指定连接数据库的用户名。
-   - `-d`：指定要导入的数据库名。
-   - `-f`：指定要执行的SQL文件的路径和名称。
+### Docker 部署注意事项
 
-### 三、检查导入结果
+1. 如果需要持久 Docker 容器 ，请将以下目录挂载到容器外部，这样即使容器被删除数据也不会丢失：
 
-导入完成后，你可以连接到目标数据库，并检查数据是否已成功导入。例如：
+   bash
 
-```sh
-sh复制代码
+   ```
+   /opt/emqx/data
+   /opt/emqx/log
+   ```
 
-psql -U 用户名 -d 目标数据库名
-```
+   关于 EMQX 目录结构的详细信息请参考 [EMQX 文件和目录](https://docs.emqx.com/zh/emqx/latest/deploy/install.html#文件和目录)。
 
-然后在 `psql` 提示符下，运行一些查询来验证数据：
+   启动容器并挂载目录：
 
-```sql
-\dt             -- 列出表
-SELECT * FROM some_table LIMIT 10;  -- 从某个表中查询一些数据
-```
+   bash
 
-### 注意事项
+   ```
+   docker run -d --name emqx-enterprise \
+     -p 1883:1883 -p 8083:8083 \
+     -p 8084:8084 -p 8883:8883 \
+     -p 18083:18083 \
+     -v $PWD/data:/opt/emqx/data \
+     -v $PWD/log:/opt/emqx/log \
+     emqx/emqx-enterprise:5.8.4
+   ```
 
-- **权限**：确保你有足够的权限来创建数据库、执行恢复操作以及访问要导入的 `.sql` 文件。
-- **环境变量**：有时你可能需要设置 `PGPASSWORD` 环境变量来避免在命令行中频繁输入密码。
-- **编码**：如果 `.sql` 文件包含特定的编码（如UTF-8），请确保在导入时指定正确的编码，以避免字符集不匹配的问题。
+2. Docker 内的 `localhost` 或 `127.0.0.1` 指向的是容器内部地址，如需访问宿主机地址请使用宿主机的真实 IP 或使用 [host 网络模式](https://docs.docker.com/network/host/)。如果您使用的是 Docker for Mac 或 Docker for Windows，可以使用 `host.docker.internal` 作为宿主机地址。
 
-通过以上步骤，你应该能够成功地将全库备份的 `.sql` 文件导入到 PostgreSQL 数据库中。
+3. 由于 EMQX 使用 `data/mnesia/<节点名>` 作为数据存储目录，请使用 hostname 或者 FQDN 等固定的信息作为节点名，避免因为节点名称变动导致数据丢失。
+
+## 通过 Docker Compose 构建 EMQX 集群
+
+Docker Compose 是一个用于编排和运行多容器的工具，下面将指导您通过 Docker Compose 创建简单的 EMQX 静态集群用于测试。
+
+请注意，本章节中的 Docker Compose 示例文件仅适用于本地测试，如果您需要在生产环境中部署集群请参考 [构建集群](https://docs.emqx.com/zh/emqx/latest/deploy/cluster/introduction.html)。
+
+目前 Docker Compose 已经包含在 Docker 安装包中无需单独安装，如果您的 Docker 中没有包含 Compose 请参考 [Install Docker Compose](https://docs.docker.com/compose/install/) 进行安装。
+
+1. 在任意目录创建 `docker-compose.yml` 文件，内容如下：
+
+   ```
+   version: '3'
+   
+   services:
+     emqx1:
+       image: emqx/emqx-enterprise:5.8.4
+       container_name: emqx1
+       environment:
+       - "EMQX_NODE_NAME=emqx@node1.emqx.com"
+       - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
+       - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.com,emqx@node2.emqx.com]"
+       healthcheck:
+         test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+         interval: 5s
+         timeout: 25s
+         retries: 5
+       networks:
+         emqx-bridge:
+           aliases:
+           - node1.emqx.com
+       ports:
+         - 1883:1883
+         - 8083:8083
+         - 8084:8084
+         - 8883:8883
+         - 18083:18083
+       # volumes:
+       #   - $PWD/emqx1_data:/opt/emqx/data
+   
+     emqx2:
+       image: emqx/emqx-enterprise:5.8.4
+       container_name: emqx2
+       environment:
+       - "EMQX_NODE_NAME=emqx@node2.emqx.com"
+       - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
+       - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.com,emqx@node2.emqx.com]"
+       healthcheck:
+         test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+         interval: 5s
+         timeout: 25s
+         retries: 5
+       networks:
+         emqx-bridge:
+           aliases:
+           - node2.emqx.com
+       # volumes:
+       #   - $PWD/emqx2_data:/opt/emqx/data
+   
+   networks:
+     emqx-bridge:
+       driver: bridge
+   ```
+
+2. 通过命令行切换 `docker-compose.yml` 文件所在目录，然后输入以下命令启动 EMQX 集群：
+
+   ```
+   docker-compose up -d
+   ```
+
+3. 查看集群状态：
+
+   ```
+   docker exec -it emqx1 sh -c "emqx ctl cluster status"
+   Cluster status: #{running_nodes => ['emqx@node1.emqx.com','emqx@node2.emqx.com'],
+                     stopped_nodes => []}
+   ```
+
+## 下一步
